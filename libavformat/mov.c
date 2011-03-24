@@ -79,17 +79,27 @@ typedef struct MOVParseTableEntry {
 
 static const MOVParseTableEntry mov_default_parse_table[];
 
-static int mov_metadata_trkn(MOVContext *c, AVIOContext *pb, unsigned len)
+static int mov_metadata_number(MOVContext *c, AVIOContext *pb, unsigned len, const char* key)
 {
     char buf[16];
 
     avio_rb16(pb); // unknown
     snprintf(buf, sizeof(buf), "%d", avio_rb16(pb));
-    av_metadata_set2(&c->fc->metadata, "track", buf, 0);
+    av_metadata_set2(&c->fc->metadata, key, buf, 0);
 
     avio_rb16(pb); // total tracks
 
     return 0;
+}
+
+static int mov_metadata_trkn(MOVContext *c, AVIOContext *pb, unsigned len)
+{
+    mov_metadata_number(c, pb, len, "track");
+}
+
+static int mov_metadata_disk(MOVContext *c, AVIOContext *pb, unsigned len)
+{
+    mov_metadata_number(c, pb, len, "disc");
 }
 
 static const uint32_t mac_to_unicode[128] = {
@@ -162,6 +172,8 @@ static int mov_read_udta_string(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     case MKTAG( 't','v','n','n'): key = "network";   break;
     case MKTAG( 't','r','k','n'): key = "track";
         parse = mov_metadata_trkn; break;
+    case MKTAG( 'd','i','s','k'): key = "disc";
+        parse = mov_metadata_disk; break;
     }
 
     if (c->itunes_metadata && atom.size > 8) {
